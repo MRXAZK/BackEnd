@@ -5,7 +5,7 @@ from fastapi_jwt_auth import AuthJWT
 from pydantic import BaseModel
 from bson import ObjectId
 
-from app.serializers.userSerializers import userEntity
+from app.serializers.userSerializers import userLogin
 
 from .database import User
 from .config import settings
@@ -41,7 +41,7 @@ def require_user(Authorize: AuthJWT = Depends()):
     try:
         Authorize.jwt_required()
         user_id = Authorize.get_jwt_subject()
-        user = userEntity(User.find_one({'_id': ObjectId(str(user_id))}))
+        user = userLogin(User.find_one({'_id': ObjectId(str(user_id))}))
 
         if not user:
             raise UserNotFound('User no longer exist')

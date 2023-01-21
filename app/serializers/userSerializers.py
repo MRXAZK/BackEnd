@@ -4,12 +4,18 @@ def userEntity(user) -> dict:
         "id": str(user["_id"]),
         "username": user["username"],
         "email": user["email"],
-        "role": user["role"],
+        "photo": user["photo"],
+        "password": user["password"],
+    }
+
+def userLogin(user) -> dict:
+    return {
+        "id": str(user["_id"]),
+        "username": user["username"],
+        "email": user["email"],
         "photo": user["photo"],
         "verified": user["verified"],
         "password": user["password"],
-        "created_at": user["created_at"],
-        "updated_at": user["updated_at"]
     }
 
 

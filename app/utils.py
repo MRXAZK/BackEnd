@@ -4,7 +4,7 @@ from passlib.context import CryptContext
 from ua_parser import user_agent_parser
 from fastapi import Request
 from geopy.geocoders import Nominatim
-from requests import get
+import requests
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -32,15 +32,12 @@ def extract_device_info(request: Request):
     user_agent = user_agent_parser.Parse(ua_string)
     device = user_agent['device']
     device_name = device['family']
-    
-    # Get client's IP address
-    ip_address = get('https://api.ipify.org').text
-    
-    # Use geopy to get latitude and longitude for IP address
-    geolocator = Nominatim(user_agent="geoapiExercises")
-    location = geolocator.geocode(ip_address, timeout=5)
-    latitude = location.latitude
-    longitude = location.longitude
+
+    # Use a free IP geolocation API to get latitude and longitude 
+    response = requests.get(f"http://ip-api.com/json")
+    data = response.json()
+    latitude = data["lat"]
+    longitude = data["lon"]
     
     device = {"user_agent": user_agent, "language": language, "latitude": latitude, "longitude": longitude, "device_name": device_name}
     return device
