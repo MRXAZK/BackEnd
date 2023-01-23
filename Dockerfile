@@ -1,7 +1,7 @@
 FROM python:3.11-slim-buster
 
 # Install tesseract
-RUN apt-get update && apt-get install -y tesseract-ocr libtesseract-dev tesseract-ocr-script-latn
+RUN apt-get update && apt-get install -y tesseract-ocr libtesseract-dev tesseract-ocr-script-latn libgl1
 
 # Set the working directory
 WORKDIR /app
