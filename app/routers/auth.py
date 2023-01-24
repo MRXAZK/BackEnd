@@ -55,7 +55,8 @@ async def create_user(payload: schemas.CreateUserSchema, request: Request):
         })
 
 
-        url = f"{request.url.scheme}://{request.client.host}:{request.url.port}/api/auth/verifyemail/{token.hex()}"
+        # url = f"{request.url.scheme}://{request.client.host}:{request.url.port}/api/auth/verifyemail/{token.hex()}"
+        url = f"{request.url.scheme}://{settings.BASE_URL}/api/auth/verifyemail/{token.hex()}"
         await Email(userEntity(new_user), url, [EmailStr(payload.email)]).sendVerificationCode()
     except Exception as error:
         User.find_one_and_update({"_id": result.inserted_id}, {
@@ -109,7 +110,7 @@ def login(payload: schemas.LoginUserSchema, request: Request, response: Response
     response.set_cookie('logged_in', 'True', ACCESS_TOKEN_EXPIRES_IN * 60,
                         ACCESS_TOKEN_EXPIRES_IN * 60, '/', None, False, False, 'lax')
 
-    return {"access_token": access_token, "refresh_token": refresh_token}
+    return {"status": "success", "access_token": access_token, "refresh_token": refresh_token}
 
 @router.get('/verifyemail/{token}')
 def verify_email(token: str):

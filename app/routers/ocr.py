@@ -43,5 +43,5 @@ async def extract_text(files: List[UploadFile], user_id: int = Depends(oauth2.re
             print(f'Error: {e}')
     OCR.update_many(
         {}, {"$push": {"data": {"$each": images_data}}}, upsert=True)
-    return JSONResponse(content={"extracted_texts": extracted_texts})
+    return JSONResponse(content={"status": "success", "extracted_texts": extracted_texts})
 
