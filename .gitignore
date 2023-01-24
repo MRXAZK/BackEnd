@@ -1,6 +1,6 @@
 __pycache__
 venv/
-# .env
 __init__.py
 private_key.pem
 public_key.pem
+.env
