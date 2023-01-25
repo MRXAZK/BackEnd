@@ -11,9 +11,42 @@ import pytesseract
 from datetime import datetime
 from app.database import OCR
 from app.config import settings
+import fitz
+import pandas as pd
+from docx import Document
 
 
 ocr = APIRouter()
+
+
+
+def read_pdf(pdf_file):
+    pdf = fitz.open(stream=pdf_file)
+    text = ""
+    for page in pdf:
+        text += page.get_text("text")
+    return text
+
+
+
+def read_excel(excel_file):
+    df = pd.read_excel(excel_file)
+    text = "".join(df.to_string())
+    return text
+
+def read_csv(csv_file):
+    df = pd.read_csv(csv_file)
+    text = "".join(df.to_string())
+    return text
+
+def read_word(word_file):
+    doc = Document(word_file)
+    text = '\n'.join([paragraph.text for paragraph in doc.paragraphs])
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                text += '\n'+cell.text
+    return text
 
 
 def read_img(img):
@@ -26,22 +59,35 @@ async def extract_text(files: List[UploadFile], user_id: int = Depends(oauth2.re
     extracted_texts = []
     for file in files:
         try:
-            img = await file.read()
-            image_stream = io.BytesIO(img)
-            image_stream.seek(0)
-            file_bytes = np.asarray(bytearray(image_stream.read()), dtype=np.uint8)
-            frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-            label = read_img(frame)
-            extracted_texts.append(label)
+            text = ""
+            if file.content_type == "application/pdf":
+                pdf_file = io.BytesIO(await file.read())
+                text = read_pdf(pdf_file)
+            elif file.content_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+                excel_file = io.BytesIO(await file.read())
+                text = read_excel(excel_file)
+            elif file.content_type == "text/csv":
+                csv_file = io.BytesIO(await file.read())
+                text = read_csv(csv_file)
+            elif file.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                word_file = io.BytesIO(await file.read())
+                text = read_word(word_file)
+            else:
+                img = await file.read()
+                image_stream = io.BytesIO(img)
+                image_stream.seek(0)
+                file_bytes = np.asarray(bytearray(image_stream.read()), dtype=np.uint8)
+                frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+                text = read_img(frame)
+            extracted_texts.append(text)
             data = {
                 "user_id": user_id,
-                "text": label,
+                "text": text,
                 "timestamp": datetime.now()
             }
             images_data.append(data)
         except Exception as e:
             print(f'Error: {e}')
     OCR.update_many(
-        {}, {"$push": {"data": {"$each": images_data}}}, upsert=True)
+    {}, {"$push": {"data": {"$each": images_data}}}, upsert=True)
     return JSONResponse(content={"status": "success", "extracted_texts": extracted_texts})
-
