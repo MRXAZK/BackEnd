@@ -14,9 +14,17 @@ from app.config import settings
 import fitz
 import pandas as pd
 from docx import Document
+import boto3
 
 
 ocr = APIRouter()
+
+s3 = boto3.client(
+        "s3",
+        aws_access_key_id=settings.AWS_ACCESS_KEY,
+        aws_secret_access_key=settings.AWS_SECRET_KEY,
+        region_name=settings.AWS_REGION
+    )
 
 
 def read_pdf(pdf_file):
@@ -56,7 +64,6 @@ def read_img(img):
 
 @ocr.post("/extract_text")
 async def extract_text(files: List[UploadFile], user_id: int = Depends(oauth2.require_user)):
-    images_data = []
     extracted_texts = []
     for file in files:
         try:
@@ -82,14 +89,9 @@ async def extract_text(files: List[UploadFile], user_id: int = Depends(oauth2.re
                 frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
                 text = read_img(frame)
             extracted_texts.append(text)
-            data = {
-                "user_id": user_id,
-                "text": text,
-                "timestamp": datetime.now()
-            }
-            images_data.append(data)
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+            s3_key = f"{user_id}/{file.filename}_{timestamp}"
+            s3.put_object(Bucket=settings.AWS_BUCKET_NAME, Key=s3_key, Body=text)
         except Exception as e:
             print(f'Error: {e}')
-    OCR.update_many(
-        {}, {"$push": {"data": {"$each": images_data}}}, upsert=True)
     return JSONResponse(content={"status": "success", "extracted_texts": extracted_texts})

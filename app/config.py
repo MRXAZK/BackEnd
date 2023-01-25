@@ -11,7 +11,12 @@ class Settings(BaseSettings):
     # MONGO_INITDB_PORT: int
     MONGO_INITDB_COLLECTION_USER: str
     MONGO_INITDB_COLLECTION_OCR: str
-
+    
+    AWS_ACCESS_KEY: str
+    AWS_SECRET_KEY: str
+    AWS_REGION: str
+    AWS_BUCKET_NAME: str
+    
     JWT_PUBLIC_KEY: str
     JWT_PRIVATE_KEY: str
     REFRESH_TOKEN_EXPIRES_IN: int
