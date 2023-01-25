@@ -19,7 +19,6 @@ from docx import Document
 ocr = APIRouter()
 
 
-
 def read_pdf(pdf_file):
     pdf = fitz.open(stream=pdf_file)
     text = ""
@@ -28,16 +27,17 @@ def read_pdf(pdf_file):
     return text
 
 
-
 def read_excel(excel_file):
     df = pd.read_excel(excel_file)
     text = "".join(df.to_string())
     return text
 
+
 def read_csv(csv_file):
     df = pd.read_csv(csv_file)
     text = "".join(df.to_string())
     return text
+
 
 def read_word(word_file):
     doc = Document(word_file)
@@ -52,6 +52,7 @@ def read_word(word_file):
 def read_img(img):
     text = pytesseract.image_to_string(img)
     return (text)
+
 
 @ocr.post("/extract_text")
 async def extract_text(files: List[UploadFile], user_id: int = Depends(oauth2.require_user)):
@@ -76,7 +77,8 @@ async def extract_text(files: List[UploadFile], user_id: int = Depends(oauth2.re
                 img = await file.read()
                 image_stream = io.BytesIO(img)
                 image_stream.seek(0)
-                file_bytes = np.asarray(bytearray(image_stream.read()), dtype=np.uint8)
+                file_bytes = np.asarray(
+                    bytearray(image_stream.read()), dtype=np.uint8)
                 frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
                 text = read_img(frame)
             extracted_texts.append(text)
@@ -89,5 +91,5 @@ async def extract_text(files: List[UploadFile], user_id: int = Depends(oauth2.re
         except Exception as e:
             print(f'Error: {e}')
     OCR.update_many(
-    {}, {"$push": {"data": {"$each": images_data}}}, upsert=True)
+        {}, {"$push": {"data": {"$each": images_data}}}, upsert=True)
     return JSONResponse(content={"status": "success", "extracted_texts": extracted_texts})
