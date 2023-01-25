@@ -1,4 +1,4 @@
-#email.py
+# email.py
 from typing import List
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 from pydantic import EmailStr, BaseModel
@@ -14,6 +14,7 @@ env = Environment(
 
 class EmailSchema(BaseModel):
     email: List[EmailStr]
+
 
 class Email:
     def __init__(self, user: dict, url: str, email: List[EmailStr]):
@@ -32,7 +33,7 @@ class Email:
             MAIL_PORT=settings.EMAIL_PORT,
             MAIL_SERVER=settings.EMAIL_HOST,
             MAIL_STARTTLS=False,
-            MAIL_SSL_TLS=False,
+            MAIL_SSL_TLS=True,
             USE_CREDENTIALS=True,
             VALIDATE_CERTS=True
         )
@@ -59,6 +60,6 @@ class Email:
 
     async def sendVerificationCode(self):
         await self.sendMail('Your verification code (Valid for 10min)', 'verification')
-    
+
     async def sendPasswordResetCode(self):
         await self.sendMail('Reset your password', 'resetpassword')
