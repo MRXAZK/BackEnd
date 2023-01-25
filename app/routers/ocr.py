@@ -1,9 +1,10 @@
 # routes/ocr.py
 from fastapi import APIRouter, UploadFile, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse,  StreamingResponse
 from typing import List
 from app import oauth2
 import pymongo
+import os
 import cv2
 import io
 import numpy as np
@@ -20,11 +21,11 @@ import boto3
 ocr = APIRouter()
 
 s3 = boto3.client(
-        "s3",
-        aws_access_key_id=settings.AWS_ACCESS_KEY,
-        aws_secret_access_key=settings.AWS_SECRET_KEY,
-        region_name=settings.AWS_REGION
-    )
+    "s3",
+    aws_access_key_id=settings.AWS_ACCESS_KEY,
+    aws_secret_access_key=settings.AWS_SECRET_KEY,
+    region_name=settings.AWS_REGION
+)
 
 
 def read_pdf(pdf_file):
@@ -89,9 +90,37 @@ async def extract_text(files: List[UploadFile], user_id: int = Depends(oauth2.re
                 frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
                 text = read_img(frame)
             extracted_texts.append(text)
+            filename, file_extension = os.path.splitext(file.filename)
             timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-            s3_key = f"{user_id}/{file.filename}_{timestamp}"
-            s3.put_object(Bucket=settings.AWS_BUCKET_NAME, Key=s3_key, Body=text)
+            s3_key = f"{user_id}/{filename}_{timestamp}{file_extension}"
+            s3.put_object(Bucket=settings.AWS_BUCKET_NAME,
+                          Key=s3_key, Body=text)
         except Exception as e:
             print(f'Error: {e}')
     return JSONResponse(content={"status": "success", "extracted_texts": extracted_texts})
+
+
+@ocr.get("/list_files")
+async def list_files(user_id: int = Depends(oauth2.require_user)):
+    try:
+        # Use the boto3 client to list the objects in the S3 bucket
+        objects = s3.list_objects(
+            Bucket=settings.AWS_BUCKET_NAME, Prefix=f"{user_id}/")
+        # Extract the file names from the response
+        file_list = [obj["Key"] for obj in objects["Contents"]]
+        return JSONResponse(content={"status": "success", "file_list": file_list})
+    except Exception as e:
+        return JSONResponse(content={"status": "error", "message": str(e)}, status_code=500)
+
+
+@ocr.get("/download_file/{file_name}")
+async def download_file(file_name: str, user_id: int = Depends(oauth2.require_user)):
+    try:
+        # Use the boto3 client to download the object from the S3 bucket
+        file_content = s3.get_object(
+            Bucket=settings.AWS_BUCKET_NAME, Key=f"{user_id}/{file_name}")["Body"].read()
+        # Return the file content as an attachment
+        file = io.BytesIO(file_content)
+        return StreamingResponse(file, media_type="text/plain", headers={"Content-Disposition": f"attachment;filename={file_name}"})
+    except Exception as e:
+        return JSONResponse(content={"status": "error", "message": str(e)}, status_code=500)
