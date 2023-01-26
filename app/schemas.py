@@ -18,7 +18,7 @@ class CreateUserSchema(UserBaseSchema):
 
 class LoginUserSchema(BaseModel):
     email: EmailStr
-    password: constr(min_length=8)
+    password: str
 
 
 class UserResponseSchema(UserBaseSchema):
@@ -29,13 +29,16 @@ class UserResponseSchema(UserBaseSchema):
 class UserResponse(BaseModel):
     status: str
     user: UserResponseSchema
-    
+
+
 class ResetPasswordRequestSchema(BaseModel):
     email: EmailStr
+
 
 class ResetPasswordSchema(BaseModel):
     password: constr(min_length=8)
     passwordConfirm: constr(min_length=8)
+
 
 class ChangePasswordSchema(BaseModel):
     currentPassword: constr(min_length=8)

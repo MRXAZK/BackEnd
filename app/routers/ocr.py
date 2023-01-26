@@ -106,8 +106,11 @@ async def list_files(user_id: int = Depends(oauth2.require_user)):
         # Use the boto3 client to list the objects in the S3 bucket
         objects = s3.list_objects(
             Bucket=settings.AWS_BUCKET_NAME, Prefix=f"{user_id}/")
+        if not objects.get("Contents"):
+            return JSONResponse(content={"status": "error", "message": "Data not found"}, status_code=404)
         # Extract the file names from the response
-        file_list = [obj["Key"] for obj in objects["Contents"]]
+        file_list = [obj["Key"].replace(f"{user_id}/", "")
+                     for obj in objects["Contents"]]
         return JSONResponse(content={"status": "success", "file_list": file_list})
     except Exception as e:
         return JSONResponse(content={"status": "error", "message": str(e)}, status_code=500)
@@ -116,6 +119,9 @@ async def list_files(user_id: int = Depends(oauth2.require_user)):
 @ocr.get("/download_file/{file_name}")
 async def download_file(file_name: str, user_id: int = Depends(oauth2.require_user)):
     try:
+        # Use the boto3 client to check if the object exists in the S3 bucket
+        s3.head_object(Bucket=settings.AWS_BUCKET_NAME,
+                       Key=f"{user_id}/{file_name}")
         # Use the boto3 client to download the object from the S3 bucket
         file_content = s3.get_object(
             Bucket=settings.AWS_BUCKET_NAME, Key=f"{user_id}/{file_name}")["Body"].read()
@@ -123,4 +129,7 @@ async def download_file(file_name: str, user_id: int = Depends(oauth2.require_us
         file = io.BytesIO(file_content)
         return StreamingResponse(file, media_type="text/plain", headers={"Content-Disposition": f"attachment;filename={file_name}"})
     except Exception as e:
-        return JSONResponse(content={"status": "error", "message": str(e)}, status_code=500)
+        if "NoSuchKey" in str(e):
+            return JSONResponse(content={"status": "error", "message": "File not found"}, status_code=404)
+        else:
+            return JSONResponse(content={"status": "error", "message": str(e)}, status_code=500)
