@@ -108,15 +108,18 @@ async def list_files(user_id: int = Depends(oauth2.require_user)):
             Bucket=settings.AWS_BUCKET_NAME, Prefix=f"{user_id}/")
         if not objects.get("Contents"):
             return JSONResponse(content={"status": "error", "message": "Data not found"}, status_code=404)
-        # Extract the file names from the response
-        file_list = [obj["Key"].replace(f"{user_id}/", "")
-                     for obj in objects["Contents"]]
+        # Extract the file names and sizes from the response
+        file_list = []
+        for obj in objects["Contents"]:
+            filename = obj["Key"].replace(f"{user_id}/", "")
+            filesize = obj["Size"]
+            file_list.append({"name": filename, "size": filesize})
         return JSONResponse(content={"status": "success", "file_list": file_list})
     except Exception as e:
         return JSONResponse(content={"status": "error", "message": str(e)}, status_code=500)
 
 
-@ocr.get("/download_file/{file_name}")
+@ ocr.get("/download_file/{file_name}")
 async def download_file(file_name: str, user_id: int = Depends(oauth2.require_user)):
     try:
         # Use the boto3 client to check if the object exists in the S3 bucket
