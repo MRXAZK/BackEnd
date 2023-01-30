@@ -37,6 +37,7 @@ async def create_user(payload: schemas.CreateUserSchema, request: Request):
     payload.password = utils.hash_password(payload.password)
     del payload.passwordConfirm
     payload.email = payload.email.lower()
+    payload.full_name = payload.full_name
 
     result = User.insert_one(payload.dict())
     new_user = User.find_one({'_id': result.inserted_id})

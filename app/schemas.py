@@ -4,6 +4,7 @@ from pydantic import BaseModel, EmailStr, constr
 
 class UserBaseSchema(BaseModel):
     username: str
+    full_name: str
     email: EmailStr
 
     class Config:
