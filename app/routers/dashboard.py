@@ -10,11 +10,9 @@ router = APIRouter()
 
 @router.get("/")
 async def dashboard(user_id: int = Depends(oauth2.require_user)):
-    user = User.find_one({'_id': ObjectId(str(user_id))})
-    username = user["username"]
     data = list(OCR.find({"data.user_id": user_id}))
     if not data:
-        return JSONResponse(content={"username": username, "message": "No data found"})
+        return JSONResponse(content={"message": "No data found"})
     date_upload = []
     for doc in data:
         for item in doc["data"]:
@@ -22,16 +20,14 @@ async def dashboard(user_id: int = Depends(oauth2.require_user)):
                 item["timestamp"], "%Y-%m-%d %H:%M:%S")
             date_upload.append(date_obj.strftime("%Y-%m-%d %H:%M:%S"))
     data_count = len(date_upload)
-    return JSONResponse(content={"status": "success", "username": username, "total_data": data_count, "date_upload": date_upload})
+    return JSONResponse(content={"status": "success",  "total_data": data_count, "date_upload": date_upload})
 
 
 @router.get("/{period}")
 async def dashboard(period: str, user_id: int = Depends(oauth2.require_user)):
-    user = User.find_one({'_id': ObjectId(str(user_id))})
-    username = user["username"]
     data = list(OCR.find({"data.user_id": user_id}))
     if not data:
-        return JSONResponse(content={"username": username, "message": "No data found"})
+        return JSONResponse(content={"message": "No data found"})
     date_upload = []
     for doc in data:
         for item in doc["data"]:
@@ -50,7 +46,7 @@ async def dashboard(period: str, user_id: int = Depends(oauth2.require_user)):
             data_by_hour[datetime.strptime(
                 hour, "%Y-%m-%d %H:%M:%S").hour] += 1
         return JSONResponse(content={
-            "status": "success", "username": username, "period": period,
+            "status": "success",  "period": period,
             "period_data": hours_of_day, "data": data_by_hour
         })
 
@@ -65,7 +61,7 @@ async def dashboard(period: str, user_id: int = Depends(oauth2.require_user)):
             data_by_day[datetime.strptime(
                 day, "%Y-%m-%d %H:%M:%S").weekday()] += 1
         return JSONResponse(content={
-            "status": "success", "username": username, "period": period,
+            "status": "success",  "period": period,
             "period_data": days_of_week, "data": data_by_day
         })
     elif period == "month":
@@ -78,7 +74,7 @@ async def dashboard(period: str, user_id: int = Depends(oauth2.require_user)):
             data_by_day[datetime.strptime(
                 day, "%Y-%m-%d %H:%M:%S").day - 1] += 1
         return JSONResponse(content={
-            "status": "success", "username": username, "period": period,
+            "status": "success",  "period": period,
             "period_data": days_of_month, "data": data_by_day
         })
     elif period == "year":
@@ -92,7 +88,7 @@ async def dashboard(period: str, user_id: int = Depends(oauth2.require_user)):
             data_by_month[datetime.strptime(
                 day, "%Y-%m-%d %H:%M:%S").month - 1] += 1
         return JSONResponse(content={
-            "status": "success", "username": username, "period": period,
+            "status": "success",  "period": period,
             "period_data": months_of_year, "data": data_by_month
         })
 
