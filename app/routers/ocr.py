@@ -67,40 +67,45 @@ def read_img(img):
 async def extract_text(files: List[UploadFile], user_id: int = Depends(oauth2.require_user)):
     extracted_texts = []
     for file in files:
-        try:
-            text = ""
-            if file.content_type == "application/pdf":
-                pdf_file = io.BytesIO(await file.read())
-                text = read_pdf(pdf_file)
-            elif file.content_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-                excel_file = io.BytesIO(await file.read())
-                text = read_excel(excel_file)
-            elif file.content_type == "text/csv":
-                csv_file = io.BytesIO(await file.read())
-                text = read_csv(csv_file)
-            elif file.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                word_file = io.BytesIO(await file.read())
-                text = read_word(word_file)
-            else:
-                img = await file.read()
-                image_stream = io.BytesIO(img)
-                image_stream.seek(0)
-                file_bytes = np.asarray(
-                    bytearray(image_stream.read()), dtype=np.uint8)
-                frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-                text = read_img(frame)
-            extracted_texts.append(text)
-            filename, file_extension = os.path.splitext(file.filename)
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-            s3_key = f"{user_id}/{filename}_{timestamp}{file_extension}"
-            s3.put_object(Bucket=settings.AWS_BUCKET_NAME,
-                          Key=s3_key, Body=text)
-        except Exception as e:
-            print(f'Error: {e}')
-    return JSONResponse(content={"status": "success", "extracted_texts": extracted_texts})
+        text = ""
+        if file.content_type == "application/pdf":
+            pdf_file = io.BytesIO(await file.read())
+            text = read_pdf(pdf_file)
+        elif file.content_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+            excel_file = io.BytesIO(await file.read())
+            text = read_excel(excel_file)
+        elif file.content_type == "text/csv":
+            csv_file = io.BytesIO(await file.read())
+            text = read_csv(csv_file)
+        elif file.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            word_file = io.BytesIO(await file.read())
+            text = read_word(word_file)
+        else:
+            img = await file.read()
+            image_stream = io.BytesIO(img)
+            image_stream.seek(0)
+            file_bytes = np.asarray(
+                bytearray(image_stream.read()), dtype=np.uint8)
+            frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+            text = read_img(frame)
+
+        extracted_texts.append({
+            "user_id": user_id,
+            "text": text,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        })
+
+        filename, file_extension = os.path.splitext(file.filename)
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+        s3_key = f"{user_id}/{filename}_{timestamp}{file_extension}"
+        s3.put_object(Bucket=settings.AWS_BUCKET_NAME,
+                      Key=s3_key, Body=text)
+    OCR.update_many(
+        {}, {"$push": {"data": {"$each": extracted_texts}}}, upsert=True)
+    return JSONResponse(content={"extracted_texts": extracted_texts})
 
 
-@ocr.get("/list_files")
+@ ocr.get("/list_files")
 async def list_files(user_id: int = Depends(oauth2.require_user)):
     try:
         # Use the boto3 client to list the objects in the S3 bucket
