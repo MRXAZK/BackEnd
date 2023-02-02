@@ -23,7 +23,7 @@ app.add_middleware(
 @app.get("/", tags=["Root"])
 async def root():
     return {
-        "Message": "Search - BackEnd",
+        "Message": "BackEnd",
         "Author": "Farhan Aulianda"
     }
 
