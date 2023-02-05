@@ -81,7 +81,7 @@ async def upload_file(files: List[UploadFile], user_id: int = Depends(oauth2.req
                                      "failed_files": failed_files})
 
 
-@file.post("/list")
+@file.get("/list")
 async def list_files(user_id: int = Depends(oauth2.require_user)):
     files = OCR.find({"user_id": user_id})
     files_list = []
