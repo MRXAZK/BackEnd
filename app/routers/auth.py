@@ -71,45 +71,34 @@ async def create_user(payload: schemas.CreateUserSchema, request: Request):
     return {'status': 'success', 'message': 'Verification token successfully sent to your email'}
 
 
-@router.post("/login",)
-async def login(response: Response, request: Request, form_data: OAuth2PasswordRequestForm = Depends(), Authorize: AuthJWT = Depends()):
-    db_user = User.find_one({'username': form_data.username})
+@router.post('/login')
+def login(payload: schemas.LoginUserSchema, request: Request, response: Response, Authorize: AuthJWT = Depends()):
+    # Check if the user exist
+    db_user = User.find_one({'email': payload.email.lower()})
     if not db_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail='Incorrect Email or Password')
     user = userLogin(db_user)
-
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    if not utils.verify_password(form_data.password, user['password']):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect Email or Password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-        # Extract device information from request headers or user agent
+    # Check if user verified his email
+    if not user['verified']:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail='Please verify your email address')
+    # Check if the password is valid
+    if not utils.verify_password(payload.password, user['password']):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail='Incorrect Email or Password')
+    # Extract device information from request headers or user agent
     device_info = utils.extract_device_info(request)
-
     # Check if the device is already in the database
     if not User.find_one({"_id": db_user["_id"], "device.user_agent": device_info["user_agent"]}):
         User.find_one_and_update(
             {"_id": db_user["_id"]}, {"$push": {"device": {"$each": [device_info]}}}, upsert=True)
-
     # Create access token
     access_token = Authorize.create_access_token(
         subject=str(user["id"]), expires_time=timedelta(minutes=ACCESS_TOKEN_EXPIRES_IN))
-
     # Create refresh token
     refresh_token = Authorize.create_refresh_token(
         subject=str(user["id"]), expires_time=timedelta(minutes=REFRESH_TOKEN_EXPIRES_IN))
-
     # Store refresh and access tokens in cookie
     response.set_cookie('access_token', access_token, ACCESS_TOKEN_EXPIRES_IN * 60,
                         ACCESS_TOKEN_EXPIRES_IN * 60, '/', None, False, True, 'lax')
@@ -117,8 +106,7 @@ async def login(response: Response, request: Request, form_data: OAuth2PasswordR
                         REFRESH_TOKEN_EXPIRES_IN * 60, REFRESH_TOKEN_EXPIRES_IN * 60, '/', None, False, True, 'lax')
     response.set_cookie('logged_in', 'True', ACCESS_TOKEN_EXPIRES_IN * 60,
                         ACCESS_TOKEN_EXPIRES_IN * 60, '/', None, False, False, 'lax')
-
-    return {"status": "success", "token_type": "bearer", "access_token": access_token, "refresh_token": refresh_token}
+    return {"status": "success", "access_token": access_token, "refresh_token": refresh_token}
 
 
 @router.get('/refresh')

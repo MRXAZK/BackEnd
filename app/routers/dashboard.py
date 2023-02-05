@@ -10,31 +10,28 @@ router = APIRouter()
 
 @router.get("/")
 async def dashboard(user_id: int = Depends(oauth2.require_user)):
-    data = list(OCR.find({"data.user_id": user_id}))
-    if not data:
+    files = OCR.find({"user_id": user_id})
+    if not files:
         return JSONResponse(content={"message": "No data found"})
     date_upload = []
-    for doc in data:
-        for item in doc["data"]:
-            date_obj = datetime.strptime(
-                item["timestamp"], "%Y-%m-%d %H:%M:%S")
-            date_upload.append(date_obj.strftime("%Y-%m-%d %H:%M:%S"))
+    for file in files:
+        date_obj = datetime.strptime(
+            file["timestamp"], "%Y-%m-%d %H:%M:%S")
+        date_upload.append(date_obj.strftime("%Y-%m-%d %H:%M:%S"))
     data_count = len(date_upload)
     return JSONResponse(content={"status": "success",  "total_data": data_count, "date_upload": date_upload})
 
 
 @router.get("/{period}")
 async def dashboard(period: str, user_id: int = Depends(oauth2.require_user)):
-    data = list(OCR.find({"data.user_id": user_id}))
-    if not data:
+    files = OCR.find({"user_id": user_id})
+    if not files:
         return JSONResponse(content={"message": "No data found"})
     date_upload = []
-    for doc in data:
-        for item in doc["data"]:
-            date_obj = datetime.strptime(
-                item["timestamp"], "%Y-%m-%d %H:%M:%S")
-            date_upload.append(date_obj.strftime("%Y-%m-%d %H:%M:%S"))
-    data_count = len(date_upload)
+    for file in files:
+        date_obj = datetime.strptime(
+            file["timestamp"], "%Y-%m-%d %H:%M:%S")
+        date_upload.append(date_obj.strftime("%Y-%m-%d %H:%M:%S"))
 
     # filter data based on specified period
     if period == "day":
@@ -68,7 +65,7 @@ async def dashboard(period: str, user_id: int = Depends(oauth2.require_user)):
         month_ago = datetime.now() - timedelta(days=30)
         filtered_data = [x for x in date_upload if datetime.strptime(
             x, "%Y-%m-%d %H:%M:%S") > month_ago]
-        days_of_month = [f"Day {i}" for i in range(1, 31)]
+        days_of_month = [f"{i}" for i in range(1, 31)]
         data_by_day = [0] * 30
         for day in filtered_data:
             data_by_day[datetime.strptime(

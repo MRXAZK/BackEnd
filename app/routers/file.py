@@ -1,4 +1,5 @@
 # routes/file.py
+import hashlib
 import uuid
 from fastapi import APIRouter, HTTPException, UploadFile, Depends
 from fastapi.responses import JSONResponse,  StreamingResponse
@@ -24,32 +25,82 @@ s3 = boto3.client(
 @file.post("/upload")
 async def upload_file(files: List[UploadFile], user_id: int = Depends(oauth2.require_user)):
     stored_files = []
+    failed_files = []
+    success = False
     for file in files:
+        # hash the contents of the file
+        hasher = hashlib.sha256()
+        hasher.update(await file.read())
+        file_hash = hasher.hexdigest()
+
+        # check if the file already exists in the database
+        existing_file = OCR.find_one({"hash": file_hash, "user_id": user_id})
+        if existing_file:
+            # the file already exists in the database, add it to the failed_files list
+            failed_files.append(file.filename)
+            continue
+
         file_id = str(uuid.uuid4())
         s3_key = f"{user_id}/{file_id}"
+
+        # upload the file to S3
         s3.put_object(Bucket=settings.AWS_BUCKET_NAME,
                       Key=s3_key, Body=await file.read())
+
+        # store the file information in the database
         stored_files.append({
             "file_id": file_id,
             "file_name": file.filename,
             "user_id": user_id,
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "hash": file_hash
         })
-    OCR.insert_many(stored_files)
-    return JSONResponse(content={"message": "File uploaded successfully"})
+        OCR.insert_one({
+            "file_id": file_id,
+            "file_name": file.filename,
+            "user_id": user_id,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "hash": file_hash
+        })
+
+        success = True
+
+    if success:
+        if failed_files:
+            return JSONResponse(content={"status": "success",
+                                         "message": "Some files already exists and were not uploaded",
+                                         "files": stored_files,
+                                         "failed_files": failed_files})
+        else:
+            return JSONResponse(content={"status": "success",
+                                         "message": "All files uploaded successfully",
+                                         "files": stored_files})
+    else:
+        return JSONResponse(content={"status": "failed",
+                                     "message": "All files already exist",
+                                     "failed_files": failed_files})
 
 
 @file.post("/list")
 async def list_files(user_id: int = Depends(oauth2.require_user)):
-    files = OCR.objects(user_id=user_id)
+    files = OCR.find({"user_id": user_id})
     files_list = []
     for file in files:
-        files_list.append({
-            "id": str(file.id),
-            "filename": file.filename,
-            "file_size": file.file_size,
-            "timestamp": file.timestamp
-        })
+        s3_key = f"{user_id}/{file['file_id']}"
+        try:
+            obj = s3.head_object(Bucket=settings.AWS_BUCKET_NAME, Key=s3_key)
+            files_list.append({
+                "file_id": file.get("file_id"),
+                "filename": file.get("file_name"),
+                "timestamp": file.get("timestamp"),
+                "file_size": max(round(obj['ContentLength'] / (1024 ** 2), 1), 1),
+            })
+        except:
+            pass
+
+    if len(files_list) == 0:
+        return JSONResponse(content={"message": "No data found"})
+
     return JSONResponse(content={"files": files_list})
 
 

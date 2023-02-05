@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from app.database import OCR, User
+from app.database import User
 from .. import schemas, oauth2
 from bson.objectid import ObjectId
 from app.serializers.userSerializers import userResponseEntity
