@@ -1,6 +1,8 @@
+# oauth.py
 import base64
 from typing import List
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Security
+from fastapi.security import OAuth2PasswordBearer
 from fastapi_jwt_auth import AuthJWT
 from pydantic import BaseModel
 from bson import ObjectId
