@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from fastapi.openapi.utils import get_openapi
 from app.routers import auth, dashboard, file, user
 
 app = FastAPI()
@@ -18,6 +19,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="Career Assistant BackEnd",
+        version="0.1",
+        description="This is Rest API for FrontEnd https://fe.farhanaulianda.tech/",
+        routes=app.routes,
+    )
+
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
 
 
 @app.get("/", tags=["Root"])

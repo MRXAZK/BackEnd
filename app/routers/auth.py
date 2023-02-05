@@ -72,7 +72,7 @@ async def create_user(payload: schemas.CreateUserSchema, request: Request):
 
 
 @router.post('/login')
-def login(payload: schemas.LoginUserSchema, request: Request, response: Response, Authorize: AuthJWT = Depends()):
+async def login(payload: schemas.LoginUserSchema, request: Request, response: Response, Authorize: AuthJWT = Depends()):
     # Check if the user exist
     db_user = User.find_one({'email': payload.email.lower()})
     if not db_user:
@@ -110,7 +110,7 @@ def login(payload: schemas.LoginUserSchema, request: Request, response: Response
 
 
 @router.get('/refresh')
-def refresh_token(response: Response, Authorize: AuthJWT = Depends()):
+async def refresh_token(response: Response, Authorize: AuthJWT = Depends()):
     try:
         Authorize.jwt_refresh_token_required()
 
@@ -140,7 +140,7 @@ def refresh_token(response: Response, Authorize: AuthJWT = Depends()):
 
 
 @router.get('/verifyemail/{token}')
-def verify_email(token: str):
+async def verify_email(token: str):
     try:
         # Check if token is a hexadecimal
         bytes.fromhex(token)
@@ -252,7 +252,7 @@ async def change_password(payload: schemas.ChangePasswordSchema, user_id: str = 
 
 
 @router.get('/logout', status_code=status.HTTP_200_OK)
-def logout(response: Response, Authorize: AuthJWT = Depends(), user_id: str = Depends(oauth2.require_user)):
+async def logout(response: Response, Authorize: AuthJWT = Depends(), user_id: str = Depends(oauth2.require_user)):
     Authorize.unset_jwt_cookies()
     response.set_cookie('logged_in', '', -1)
 
