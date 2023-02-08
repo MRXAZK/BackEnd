@@ -109,7 +109,7 @@ async def login(payload: schemas.LoginUserSchema, request: Request, response: Re
     return {"status": "success", "access_token": access_token, "refresh_token": refresh_token}
 
 
-@router.post('/refresh')
+@router.get('/refresh')
 async def refresh_token(response: Response, Authorize: AuthJWT = Depends()):
     try:
         Authorize.jwt_refresh_token_required()
