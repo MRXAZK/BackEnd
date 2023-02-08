@@ -7,5 +7,5 @@ client = pymongo.MongoClient(
 db = client[settings.MONGO_INITDB_DATABASE]
 print('Connected to MongoDB...')
 User = db[f"{settings.MONGO_INITDB_COLLECTION_USER}"]
-OCR = db[f"{settings.MONGO_INITDB_COLLECTION_OCR}"]
+FILE = db[f"{settings.MONGO_INITDB_COLLECTION_FILE}"]
 User.create_index([("email", pymongo.ASCENDING)], unique=True)

@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends
 from bson.objectid import ObjectId
 from fastapi.responses import JSONResponse
-from app.database import OCR, User
+from app.database import FILE, User
 from .. import oauth2
 
 router = APIRouter()
@@ -10,7 +10,7 @@ router = APIRouter()
 
 @router.get("/")
 async def dashboard(user_id: int = Depends(oauth2.require_user)):
-    files = OCR.find({"user_id": user_id})
+    files = FILE.find({"user_id": user_id})
     if not files:
         return JSONResponse(content={"message": "No data found"})
     date_upload = []
@@ -24,7 +24,7 @@ async def dashboard(user_id: int = Depends(oauth2.require_user)):
 
 @router.get("/{period}")
 async def dashboard(period: str, user_id: int = Depends(oauth2.require_user)):
-    files = OCR.find({"user_id": user_id})
+    files = FILE.find({"user_id": user_id})
     if not files:
         return JSONResponse(content={"message": "No data found"})
     date_upload = []

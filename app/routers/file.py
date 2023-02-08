@@ -7,7 +7,7 @@ from typing import List
 from app import oauth2
 import io
 from datetime import datetime
-from app.database import OCR
+from app.database import FILE
 from app.config import settings
 import boto3
 
@@ -34,7 +34,7 @@ async def upload_file(files: List[UploadFile], user_id: int = Depends(oauth2.req
         file_hash = hasher.hexdigest()
 
         # check if the file already exists in the database
-        existing_file = OCR.find_one({"hash": file_hash, "user_id": user_id})
+        existing_file = FILE.find_one({"hash": file_hash, "user_id": user_id})
         if existing_file:
             # the file already exists in the database, add it to the failed_files list
             failed_files.append(file.filename)
@@ -55,7 +55,7 @@ async def upload_file(files: List[UploadFile], user_id: int = Depends(oauth2.req
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "hash": file_hash
         })
-        OCR.insert_one({
+        FILE.insert_one({
             "file_id": file_id,
             "file_name": file.filename,
             "user_id": user_id,
@@ -82,18 +82,44 @@ async def upload_file(files: List[UploadFile], user_id: int = Depends(oauth2.req
 
 
 @file.get("/list")
-async def list_files(user_id: int = Depends(oauth2.require_user)):
-    files = OCR.find({"user_id": user_id})
+async def list_files(
+    skip: int = 0,
+    limit: int = 20,
+    user_id: int = Depends(oauth2.require_user)
+):
+    files = FILE.find({"user_id": user_id}).skip(skip).limit(limit)
     files_list = []
     for file in files:
         s3_key = f"{user_id}/{file['file_id']}"
         try:
             obj = s3.head_object(Bucket=settings.AWS_BUCKET_NAME, Key=s3_key)
+            timestamp = file.get("timestamp")
+            file_timestamp = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+            now = datetime.now()
+            delta = now - file_timestamp
+            if delta.days == 0:
+                if delta.seconds < 60:
+                    formatted_timestamp = f"{delta.seconds} seconds ago"
+                elif delta.seconds < 3600:
+                    formatted_timestamp = f"{delta.seconds // 60} minutes ago"
+                elif delta.seconds < 7200:
+                    formatted_timestamp = f"{delta.seconds // 3600} hour ago"
+                else:
+                    formatted_timestamp = f"{file_timestamp.strftime('%H:%M')}"
+            elif delta.days == 1:
+                formatted_timestamp = "yesterday"
+            else:
+                formatted_timestamp = f"{file_timestamp.strftime('%d %b %Y')}"
+            file_size = max(round(obj['ContentLength'] / 1024, 1), 1)
+            if file_size < 1024:
+                formatted_file_size = f"{file_size} KB"
+            else:
+                formatted_file_size = f"{file_size / 1024:.1f} MB"
             files_list.append({
                 "file_id": file.get("file_id"),
                 "filename": file.get("file_name"),
-                "timestamp": file.get("timestamp"),
-                "file_size": max(round(obj['ContentLength'] / (1024 ** 2), 1), 1),
+                "timestamp": formatted_timestamp,
+                "file_size": formatted_file_size,
             })
         except:
             pass
@@ -106,7 +132,7 @@ async def list_files(user_id: int = Depends(oauth2.require_user)):
 
 @file.get("/download/{file_id}")
 async def download_file(file_id: str, user_id: int = Depends(oauth2.require_user)):
-    file = OCR.find_one({"file_id": file_id, "user_id": user_id})
+    file = FILE.find_one({"file_id": file_id, "user_id": user_id})
     if file is None:
         raise HTTPException(status_code=400, detail="File not found")
     s3_key = f"{user_id}/{file_id}"
