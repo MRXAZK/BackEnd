@@ -41,7 +41,7 @@ async def upload_file(files: List[UploadFile], user_id: int = Depends(oauth2.req
             continue
 
         file_id = str(uuid.uuid4())
-        s3_key = f"{user_id}/{file_id}"
+        s3_key = f"{user_id}/{file.filename}"
 
         # upload the file to S3
         s3.put_object(Bucket=settings.AWS_BUCKET_NAME,
