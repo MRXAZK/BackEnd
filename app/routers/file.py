@@ -30,7 +30,8 @@ async def upload_file(files: List[UploadFile], user_id: int = Depends(oauth2.req
     for file in files:
         # hash the contents of the file
         hasher = hashlib.sha256()
-        hasher.update(await file.read())
+        file_content = await file.read()
+        hasher.update(file_content)
         file_hash = hasher.hexdigest()
 
         # check if the file already exists in the database
@@ -45,7 +46,7 @@ async def upload_file(files: List[UploadFile], user_id: int = Depends(oauth2.req
 
         # upload the file to S3
         s3.put_object(Bucket=settings.AWS_BUCKET_NAME,
-                      Key=s3_key, Body=await file.read())
+                      Key=s3_key, Body=file_content)
 
         # store the file information in the database
         stored_files.append({
