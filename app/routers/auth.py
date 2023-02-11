@@ -71,6 +71,33 @@ async def create_user(payload: schemas.CreateUserSchema, request: Request):
     return {'status': 'success', 'message': 'Verification token successfully sent to your email'}
 
 
+@router.get('/verifyemail/{token}')
+async def verify_email(token: str):
+    try:
+        # Check if token is a hexadecimal
+        bytes.fromhex(token)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail='Invalid token')
+
+    verification_code = hashlib.sha256(bytes.fromhex(token)).hexdigest()
+    user = User.find_one({"verification.code": verification_code})
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail='Verification code not found')
+
+    # Check if token is expired
+    if user["verification"]["expiration"] < datetime.utcnow():
+        raise HTTPException(status_code=status.HTTP_410_GONE,
+                            detail='Token expired')
+
+    User.find_one_and_update({"_id": user['_id']}, {
+        "$set": {"verified": True, "updated_at": datetime.utcnow()},
+        "$unset": {"verification": ""}})
+
+    return {'status': 'success', 'message': 'Email successfully verified'}
+
+
 @router.post('/login')
 async def login(payload: schemas.LoginUserSchema, request: Request, response: Response, Authorize: AuthJWT = Depends()):
     # Check if the user exist
@@ -137,33 +164,6 @@ async def refresh_token(response: Response, Authorize: AuthJWT = Depends()):
     response.set_cookie('logged_in', 'True', ACCESS_TOKEN_EXPIRES_IN * 60,
                         ACCESS_TOKEN_EXPIRES_IN * 60, '/', None, False, False, 'lax')
     return {'access_token': access_token}
-
-
-@router.get('/verifyemail/{token}')
-async def verify_email(token: str):
-    try:
-        # Check if token is a hexadecimal
-        bytes.fromhex(token)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail='Invalid token')
-
-    verification_code = hashlib.sha256(bytes.fromhex(token)).hexdigest()
-    user = User.find_one({"verification.code": verification_code})
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail='Verification code not found')
-
-    # Check if token is expired
-    if user["verification"]["expiration"] < datetime.utcnow():
-        raise HTTPException(status_code=status.HTTP_410_GONE,
-                            detail='Token expired')
-
-    User.find_one_and_update({"_id": user['_id']}, {
-        "$set": {"verified": True, "updated_at": datetime.utcnow()},
-        "$unset": {"verification": ""}})
-
-    return {'status': 'success', 'message': 'Email successfully verified'}
 
 
 @router.post("/resetpassword", status_code=status.HTTP_200_OK)
